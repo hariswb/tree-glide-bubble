@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -17,6 +18,73 @@ const (
 	purple = lipgloss.Color("#bd93f9")
 )
 
+type Styles struct {
+	Shapes     lipgloss.Style
+	Selected   lipgloss.Style
+	Unselected lipgloss.Style
+	Help       lipgloss.Style
+}
+
+func defaultStyles() Styles {
+	return Styles{
+		Shapes:     lipgloss.NewStyle().Margin(0, 0, 0, 0).Foreground(purple),
+		Selected:   lipgloss.NewStyle().Margin(0, 0, 0, 0).Background(purple),
+		Unselected: lipgloss.NewStyle().Margin(0, 0, 0, 0).Foreground(lipgloss.AdaptiveColor{Light: "#000000", Dark: "#ffffff"}),
+		Help:       lipgloss.NewStyle().Margin(0, 0, 0, 0).Foreground(lipgloss.AdaptiveColor{Light: "#000000", Dark: "#ffffff"}),
+	}
+}
+
+// KeyMap holds the key bindings for the table.
+type KeyMap struct {
+	Bottom      key.Binding
+	Top         key.Binding
+	SectionDown key.Binding
+	SectionUp   key.Binding
+	Down        key.Binding
+	Up          key.Binding
+	Right       key.Binding
+	Left        key.Binding
+	Quit        key.Binding
+
+	ShowFullHelp  key.Binding
+	CloseFullHelp key.Binding
+}
+
+// DefaultKeyMap is the default key bindings for the table.
+func DefaultKeyMap() KeyMap {
+	return KeyMap{
+		Down: key.NewBinding(
+			key.WithKeys("down"),
+			key.WithHelp("↓", "down"),
+		),
+		Up: key.NewBinding(
+			key.WithKeys("up"),
+			key.WithHelp("↑", "up"),
+		),
+		Right: key.NewBinding(
+			key.WithKeys("right"),
+			key.WithHelp("→", "right"),
+		),
+		Left: key.NewBinding(
+			key.WithKeys("left"),
+			key.WithHelp("←", "left"),
+		),
+		ShowFullHelp: key.NewBinding(
+			key.WithKeys("?"),
+			key.WithHelp("?", "more"),
+		),
+		CloseFullHelp: key.NewBinding(
+			key.WithKeys("?"),
+			key.WithHelp("?", "close help"),
+		),
+
+		Quit: key.NewBinding(
+			key.WithKeys("q", "esc"),
+			key.WithHelp("q", "quit"),
+		),
+	}
+}
+
 type Node struct {
 	Value    string
 	Parent   *Node
@@ -29,13 +97,6 @@ type Cursor struct {
 	Index   int
 }
 
-type Styles struct {
-	Shapes     lipgloss.Style
-	Selected   lipgloss.Style
-	Unselected lipgloss.Style
-	Help       lipgloss.Style
-}
-
 type Model struct {
 	KeyMap KeyMap
 	Styles Styles
@@ -45,6 +106,11 @@ type Model struct {
 
 	width  int
 	height int
+
+	Help     help.Model
+	showHelp bool
+
+	AdditionalShortHelpKeys func() []key.Binding
 }
 
 func New(node *Node, width int, height int) Model {
@@ -61,6 +127,9 @@ func New(node *Node, width int, height int) Model {
 
 		width:  width,
 		height: height,
+
+		Help:     help.New(),
+		showHelp: true,
 	}
 }
 
@@ -76,6 +145,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.NavLeft()
 		case key.Matches(msg, m.KeyMap.Right):
 			m.NavRight()
+		case key.Matches(msg, m.KeyMap.ShowFullHelp):
+			fallthrough
+		case key.Matches(msg, m.KeyMap.CloseFullHelp):
+			m.Help.ShowAll = !m.Help.ShowAll
 		}
 	}
 
@@ -83,10 +156,16 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 func (m Model) View() string {
-	// sections := []string{m.cursor.Parent.Value, m.cursor.Current.Value, strconv.Itoa(m.cursor.Index)}
+	availableHeight := m.height
+
+	var help string
+	if m.showHelp {
+		help = m.helpView()
+		availableHeight -= lipgloss.Height(help)
+	}
 
 	var sections []string
-	sections = append(sections, lipgloss.NewStyle().Height(24).Render(m.renderTree(m.root.Children, 0)), m.cursor.Current.Value)
+	sections = append(sections, lipgloss.NewStyle().Height(20).Render(m.renderTree(m.root.Children, 0)), help)
 
 	return lipgloss.JoinVertical(lipgloss.Left, sections...)
 }
@@ -160,62 +239,38 @@ func (m *Model) NavRight() {
 	}
 }
 
-func defaultStyles() Styles {
-	return Styles{
-		Shapes:     lipgloss.NewStyle().Margin(0, 0, 0, 0).Foreground(purple),
-		Selected:   lipgloss.NewStyle().Margin(0, 0, 0, 0).Background(purple),
-		Unselected: lipgloss.NewStyle().Margin(0, 0, 0, 0).Foreground(lipgloss.AdaptiveColor{Light: "#000000", Dark: "#ffffff"}),
-		Help:       lipgloss.NewStyle().Margin(0, 0, 0, 0).Foreground(lipgloss.AdaptiveColor{Light: "#000000", Dark: "#ffffff"}),
-	}
+func (m *Model) SetShowHelp() bool {
+	return m.showHelp
 }
 
-// KeyMap holds the key bindings for the table.
-type KeyMap struct {
-	Bottom      key.Binding
-	Top         key.Binding
-	SectionDown key.Binding
-	SectionUp   key.Binding
-	Down        key.Binding
-	Up          key.Binding
-	Right       key.Binding
-	Left        key.Binding
-	Quit        key.Binding
-
-	ShowFullHelp  key.Binding
-	CloseFullHelp key.Binding
+func (m Model) helpView() string {
+	return m.Styles.Help.Render(m.Help.View(m))
 }
 
-// DefaultKeyMap is the default key bindings for the table.
-func DefaultKeyMap() KeyMap {
-	return KeyMap{
-		Down: key.NewBinding(
-			key.WithKeys("down"),
-			key.WithHelp("↓", "down"),
-		),
-		Up: key.NewBinding(
-			key.WithKeys("up"),
-			key.WithHelp("↑", "up"),
-		),
-		Right: key.NewBinding(
-			key.WithKeys("right"),
-			key.WithHelp("→", "right"),
-		),
-		Left: key.NewBinding(
-			key.WithKeys("left"),
-			key.WithHelp("←", "left"),
-		),
-		ShowFullHelp: key.NewBinding(
-			key.WithKeys("?"),
-			key.WithHelp("?", "more"),
-		),
-		CloseFullHelp: key.NewBinding(
-			key.WithKeys("?"),
-			key.WithHelp("?", "close help"),
-		),
-
-		Quit: key.NewBinding(
-			key.WithKeys("q", "esc"),
-			key.WithHelp("q", "quit"),
-		),
+func (m Model) ShortHelp() []key.Binding {
+	kb := []key.Binding{
+		m.KeyMap.Up,
+		m.KeyMap.Down,
 	}
+
+	if m.AdditionalShortHelpKeys != nil {
+		kb = append(kb, m.AdditionalShortHelpKeys()...)
+	}
+
+	return append(kb,
+		m.KeyMap.Quit,
+	)
+}
+
+func (m Model) FullHelp() [][]key.Binding {
+	kb := [][]key.Binding{{
+		m.KeyMap.Up,
+		m.KeyMap.Down,
+	}}
+
+	return append(kb,
+		[]key.Binding{
+			m.KeyMap.Quit,
+			m.KeyMap.CloseFullHelp,
+		})
 }
