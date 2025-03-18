@@ -1,16 +1,20 @@
-package main
+package treeglide
 
 import (
-	"os"
-	"strconv"
+	"fmt"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
-var (
-	styleDoc = lipgloss.NewStyle().Padding(1)
+const (
+	bottomLeft string = " └──"
+
+	white  = lipgloss.Color("#ffffff")
+	black  = lipgloss.Color("#000000")
+	purple = lipgloss.Color("#bd93f9")
 )
 
 type Node struct {
@@ -25,21 +29,38 @@ type Cursor struct {
 	Index   int
 }
 
-type Model struct {
-	KeyMap KeyMap
-	root   *Node
-	cursor Cursor
+type Styles struct {
+	Shapes     lipgloss.Style
+	Selected   lipgloss.Style
+	Unselected lipgloss.Style
+	Help       lipgloss.Style
 }
 
-func New(node *Node) Model {
+type Model struct {
+	KeyMap KeyMap
+	Styles Styles
+
+	root   *Node
+	cursor Cursor
+
+	width  int
+	height int
+}
+
+func New(node *Node, width int, height int) Model {
 	return Model{
 		KeyMap: DefaultKeyMap(),
-		root:   node,
+		Styles: defaultStyles(),
+
+		root: node,
 		cursor: Cursor{
 			Current: node.Children[0],
 			Parent:  node,
 			Index:   0,
 		},
+
+		width:  width,
+		height: height,
 	}
 }
 
@@ -62,9 +83,45 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 func (m Model) View() string {
-	sections := []string{m.cursor.Parent.Value, m.cursor.Current.Value, strconv.Itoa(m.cursor.Index)}
+	// sections := []string{m.cursor.Parent.Value, m.cursor.Current.Value, strconv.Itoa(m.cursor.Index)}
+
+	var sections []string
+	sections = append(sections, lipgloss.NewStyle().Height(24).Render(m.renderTree(m.root.Children, 0)), m.cursor.Current.Value)
 
 	return lipgloss.JoinVertical(lipgloss.Left, sections...)
+}
+
+func (m *Model) renderTree(remainingNodes []*Node, indent int) string {
+	var b strings.Builder
+
+	for _, node := range remainingNodes {
+		var str string
+
+		// If we aren't at the root, we add the arrow shape to the string
+		if indent > 0 {
+			shape := strings.Repeat(" ", (indent-1)*4) + m.Styles.Shapes.Render(bottomLeft) + " "
+			str += shape
+		}
+
+		valueStr := fmt.Sprintf("%-*s", 20, node.Value)
+
+		// If we are at the cursor, we add the selected style to the string
+		if m.cursor.Current == node {
+			str += fmt.Sprintf("%s\n", m.Styles.Selected.Render(valueStr))
+		} else {
+			str += fmt.Sprintf("%s\n", m.Styles.Unselected.Render(valueStr))
+		}
+
+		b.WriteString(str)
+
+		if node.Children != nil {
+			childStr := m.renderTree(node.Children, indent+1)
+			b.WriteString(childStr)
+		}
+
+	}
+
+	return b.String()
 }
 
 func (m *Model) NavUp() {
@@ -103,6 +160,15 @@ func (m *Model) NavRight() {
 	}
 }
 
+func defaultStyles() Styles {
+	return Styles{
+		Shapes:     lipgloss.NewStyle().Margin(0, 0, 0, 0).Foreground(purple),
+		Selected:   lipgloss.NewStyle().Margin(0, 0, 0, 0).Background(purple),
+		Unselected: lipgloss.NewStyle().Margin(0, 0, 0, 0).Foreground(lipgloss.AdaptiveColor{Light: "#000000", Dark: "#ffffff"}),
+		Help:       lipgloss.NewStyle().Margin(0, 0, 0, 0).Foreground(lipgloss.AdaptiveColor{Light: "#000000", Dark: "#ffffff"}),
+	}
+}
+
 // KeyMap holds the key bindings for the table.
 type KeyMap struct {
 	Bottom      key.Binding
@@ -138,7 +204,6 @@ func DefaultKeyMap() KeyMap {
 			key.WithKeys("left"),
 			key.WithHelp("←", "left"),
 		),
-
 		ShowFullHelp: key.NewBinding(
 			key.WithKeys("?"),
 			key.WithHelp("?", "more"),
@@ -152,92 +217,5 @@ func DefaultKeyMap() KeyMap {
 			key.WithKeys("q", "esc"),
 			key.WithHelp("q", "quit"),
 		),
-	}
-}
-
-//
-// Implementation
-//
-
-type model struct {
-	tree Model
-}
-
-func (m model) Init() tea.Cmd {
-	return nil
-}
-
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "q", "ctrl+c":
-			return m, tea.Quit
-		}
-	}
-	var cmd tea.Cmd
-	m.tree, cmd = m.tree.Update(msg)
-	return m, cmd
-}
-
-func (m model) View() string {
-	return styleDoc.Render(m.tree.View())
-}
-
-func main() {
-
-	root := Node{
-		Value:    "root",
-		Parent:   nil,
-		Children: nil}
-
-	nodeA := Node{
-		Value:    "A",
-		Parent:   &root,
-		Children: nil,
-	}
-
-	nodeA1 := Node{
-		Value:    "A1",
-		Parent:   &nodeA,
-		Children: nil,
-	}
-
-	nodeA2 := Node{
-		Value:    "A2",
-		Parent:   &nodeA,
-		Children: nil,
-	}
-
-	nodeB := Node{
-		Value:    "B",
-		Parent:   &root,
-		Children: nil,
-	}
-
-	nodeB1 := Node{
-		Value:    "B1",
-		Parent:   &nodeB,
-		Children: nil,
-	}
-
-	nodeC := Node{
-		Value:    "C",
-		Parent:   &root,
-		Children: nil,
-	}
-
-	nodeA.Children = append(nodeA.Children, &nodeA1)
-	nodeA.Children = append(nodeA.Children, &nodeA2)
-
-	nodeB.Children = append(nodeB.Children, &nodeB1)
-
-	root.Children = append(root.Children, &nodeA)
-	root.Children = append(root.Children, &nodeB)
-	root.Children = append(root.Children, &nodeC)
-
-	err := tea.NewProgram(model{tree: New(&root)}).Start()
-	if err != nil {
-		os.Exit(1)
 	}
 }
