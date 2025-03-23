@@ -36,15 +36,11 @@ func defaultStyles() Styles {
 
 // KeyMap holds the key bindings for the table.
 type KeyMap struct {
-	Bottom      key.Binding
-	Top         key.Binding
-	SectionDown key.Binding
-	SectionUp   key.Binding
-	Down        key.Binding
-	Up          key.Binding
-	Right       key.Binding
-	Left        key.Binding
-	Quit        key.Binding
+	Down  key.Binding
+	Up    key.Binding
+	Right key.Binding
+	Left  key.Binding
+	Quit  key.Binding
 
 	ShowFullHelp  key.Binding
 	CloseFullHelp key.Binding
@@ -113,7 +109,7 @@ type Model struct {
 	AdditionalShortHelpKeys func() []key.Binding
 }
 
-func New(node *Node, width int, height int) Model {
+func NewTree(node *Node, width int, height int) Model {
 	return Model{
 		KeyMap: DefaultKeyMap(),
 		Styles: defaultStyles(),
@@ -131,6 +127,14 @@ func New(node *Node, width int, height int) Model {
 		Help:     help.New(),
 		showHelp: true,
 	}
+}
+
+func NewNode(value string, parent *Node) *Node {
+	node := &Node{Value: value, Parent: parent}
+	if parent != nil {
+		parent.Children = append(parent.Children, node)
+	}
+	return node
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
