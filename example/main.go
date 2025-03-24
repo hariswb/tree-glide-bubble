@@ -40,19 +40,24 @@ func (m model) View() string {
 }
 
 func main() {
-	root := treeglide.NewNode("root", nil)
+	root := treeglide.NewNode("admin", "Welcome to the thread!", nil)
 
-	nodeA := treeglide.NewNode("A", root)
-	nodeA1 := treeglide.NewNode("A1", nodeA)
-	treeglide.NewNode("A11", nodeA1)
-	treeglide.NewNode("A12", nodeA1)
-	treeglide.NewNode("A13", nodeA1)
-	treeglide.NewNode("A2", nodeA)
+	// First-level comments
+	user1 := treeglide.NewNode("user1", "I totally agree with this post!", root)
+	user2 := treeglide.NewNode("user2", "I think there’s another perspective to consider.", root)
+	user3 := treeglide.NewNode("user3", "This is hilarious! 😂", root)
 
-	nodeB := treeglide.NewNode("B", root)
-	treeglide.NewNode("B1", nodeB)
+	// Replies to user1
+	user1_1 := treeglide.NewNode("user4", "Yeah, I was thinking the same thing!", user1)
+	treeglide.NewNode("user5", "Not sure if I agree, but interesting take.", user1_1)
+	treeglide.NewNode("user6", "I see your point, but have you considered XYZ?", user1_1)
 
-	treeglide.NewNode("C", root)
+	// Replies to user2
+	user2_1 := treeglide.NewNode("user7", "What do you mean by that?", user2)
+	treeglide.NewNode("user8", "I think user2 has a good argument.", user2_1)
+
+	// Replies to user3
+	treeglide.NewNode("user9", "LOL, right? This made my day. 😂", user3)
 
 	w, h, errTerm := term.GetSize(int(os.Stdout.Fd()))
 	if errTerm != nil {

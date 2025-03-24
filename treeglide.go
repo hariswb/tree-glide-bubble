@@ -19,18 +19,20 @@ const (
 )
 
 type Styles struct {
-	Shapes     lipgloss.Style
-	Selected   lipgloss.Style
-	Unselected lipgloss.Style
-	Help       lipgloss.Style
+	Shapes        lipgloss.Style
+	SelectedValue lipgloss.Style
+	SelectedDesc  lipgloss.Style
+	Unselected    lipgloss.Style
+	Help          lipgloss.Style
 }
 
 func defaultStyles() Styles {
 	return Styles{
-		Shapes:     lipgloss.NewStyle().Margin(0, 0, 0, 0).Foreground(purple),
-		Selected:   lipgloss.NewStyle().Margin(0, 0, 0, 0).Background(purple),
-		Unselected: lipgloss.NewStyle().Margin(0, 0, 0, 0).Foreground(lipgloss.AdaptiveColor{Light: "#000000", Dark: "#ffffff"}),
-		Help:       lipgloss.NewStyle().Margin(0, 0, 0, 0).Foreground(lipgloss.AdaptiveColor{Light: "#000000", Dark: "#ffffff"}),
+		Shapes:        lipgloss.NewStyle().Margin(0, 0, 0, 0).Foreground(purple),
+		SelectedValue: lipgloss.NewStyle().Margin(0, 0, 0, 0).Background(purple),
+		SelectedDesc:  lipgloss.NewStyle().Margin(0, 0, 0, 0).Background(lipgloss.AdaptiveColor{Light: "#111100", Dark: "#001100"}),
+		Unselected:    lipgloss.NewStyle().Margin(0, 0, 0, 0).Foreground(lipgloss.AdaptiveColor{Light: "#000000", Dark: "#ffffff"}),
+		Help:          lipgloss.NewStyle().Margin(0, 0, 0, 0).Foreground(lipgloss.AdaptiveColor{Light: "#000000", Dark: "#ffffff"}),
 	}
 }
 
@@ -83,6 +85,7 @@ func DefaultKeyMap() KeyMap {
 
 type Node struct {
 	Value    string
+	Desc     string
 	Parent   *Node
 	Children []*Node
 }
@@ -129,8 +132,8 @@ func NewTree(node *Node, width int, height int) Model {
 	}
 }
 
-func NewNode(value string, parent *Node) *Node {
-	node := &Node{Value: value, Parent: parent}
+func NewNode(value string, desc string, parent *Node) *Node {
+	node := &Node{Value: value, Desc: desc, Parent: parent}
 	if parent != nil {
 		parent.Children = append(parent.Children, node)
 	}
@@ -179,20 +182,29 @@ func (m *Model) renderTree(remainingNodes []*Node, indent int) string {
 
 	for _, node := range remainingNodes {
 		var str string
+		var indentShapedStr string
+		var indentStr string
 
 		// If we aren't at the root, we add the arrow shape to the string
 		if indent > 0 {
-			shape := strings.Repeat(" ", (indent-1)*4) + m.Styles.Shapes.Render(bottomLeft) + " "
-			str += shape
+			indentStr = strings.Repeat(" ", (indent-1)*4) + strings.Repeat(" ", 5)
+			indentShapedStr += strings.Repeat(" ", (indent-1)*4) + m.Styles.Shapes.Render(bottomLeft) + " "
 		}
 
 		valueStr := fmt.Sprintf("%-*s", 20, node.Value)
+		descStr := fmt.Sprintf("%-*s", 20, node.Desc)
 
 		// If we are at the cursor, we add the selected style to the string
 		if m.cursor.Current == node {
-			str += fmt.Sprintf("%s\n", m.Styles.Selected.Render(valueStr))
+			str += indentShapedStr
+			str += fmt.Sprintf("%s\n", m.Styles.SelectedValue.Render(valueStr))
+			str += indentStr
+			str += fmt.Sprintf("%s\n", m.Styles.SelectedDesc.Render(descStr))
 		} else {
+			str += indentShapedStr
 			str += fmt.Sprintf("%s\n", m.Styles.Unselected.Render(valueStr))
+			str += indentStr
+			str += fmt.Sprintf("%s\n", m.Styles.Unselected.Render(descStr))
 		}
 
 		b.WriteString(str)
