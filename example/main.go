@@ -48,13 +48,15 @@ func main() {
 	user3 := treeglide.NewNode("user3", "This is hilarious! 😂", root)
 
 	// Replies to user1
-	user1_1 := treeglide.NewNode("user4", "Yeah, I was thinking the same thing!", user1)
-	treeglide.NewNode("user5", "Not sure if I agree, but interesting take.", user1_1)
-	treeglide.NewNode("user6", "I see your point, but have you considered XYZ?", user1_1)
+	user4 := treeglide.NewNode("user4", "Yeah, I was thinking the same thing!", user1)
+	treeglide.NewNode("user5", "Not sure if I agree, but interesting take.", user4)
+	treeglide.NewNode("user6", "I see your point, but have you considered XYZ?", user4)
+
+	treeglide.NewNode("user10", "Can you please elaborate?", user1)
 
 	// Replies to user2
-	user2_1 := treeglide.NewNode("user7", "What do you mean by that?", user2)
-	treeglide.NewNode("user8", "I think user2 has a good argument.", user2_1)
+	user7 := treeglide.NewNode("user7", "What do you mean by that?", user2)
+	treeglide.NewNode("user8", "I think user2 has a good argument.", user7)
 
 	// Replies to user3
 	treeglide.NewNode("user9", "LOL, right? This made my day. 😂", user3)

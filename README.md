@@ -7,9 +7,9 @@ Treeglide is a fork of [tree-bubble](https://github.com/savannahostrowski/tree-b
 
 # Challenges
 
-## Tree instantiation
+## Tree Initialization
 
-Initially, tree initialization is verbose as it requires pointer to the `Node` for parents and childrens, not the Node's value.
+At first, tree initialization is verbose as it requires pointer to the `Node` for parents and childrens, not the Node's value.
 
 ```go
 type Node struct {
@@ -101,4 +101,50 @@ tree:= treeglide.NewTree(root, w, h)
 
 ```
 
+## Rendering Tree Visual
 
+Tree-bubble uses these characters `└──` to denote tree branch. However, this doesn't fit the need of treeglide's format because when the tree  gets big, it's easy to lose track on the relationships between the current cursor and it's surrounding.
+
+```
+user1
+I totally agree with this post!
+└──user4
+   Yeah, I was thinking the same thing!
+   └──user5
+      Not sure if I agree, but interesting take.
+      └──user6
+         I see your point, but have you considered XYZ?
+   └──user9
+      I see your point.
+   └──user10
+      Can you please elaborate?
+user2
+I think there’s another perspective to consider.
+└──user7
+    What do you mean by that?
+    └──user8
+        I think user2 has a good argument.
+```
+
+To solve this, I use mobile reddit's comment design. It has clear key visual to show a node's relationship to its siblings, parent, and children. Navigation with this format feel more intuitive. Moreover, it's simple to implement.   
+
+```
+│user1
+│I totally agree with this post!
+│   │user4
+│   │Yeah, I was thinking the same thing!
+│   │   │user5
+│   │   │Not sure if I agree, but interesting take.
+│   │   │user6
+│   │   │I see your point, but have you considered XYZ?
+│   │user10
+│   │Can you please elaborate?
+│   │user10
+│   │Can you please elaborate?
+│user2
+│I think there’s another perspective to consider.
+│   │user7
+│   │What do you mean by that?
+│   │   │user8
+│   │   │I think user2 has a good argument.
+```

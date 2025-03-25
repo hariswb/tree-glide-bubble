@@ -11,7 +11,9 @@ import (
 )
 
 const (
-	bottomLeft string = " └──"
+	vertical      string = "│"
+	upRight       string = "└──◆"
+	verticalRight string = "├──◆"
 
 	white  = lipgloss.Color("#ffffff")
 	black  = lipgloss.Color("#000000")
@@ -182,30 +184,29 @@ func (m *Model) renderTree(remainingNodes []*Node, indent int) string {
 
 	for _, node := range remainingNodes {
 		var str string
-		var indentShapedStr string
 		var indentStr string
 
-		// If we aren't at the root, we add the arrow shape to the string
+		shape := m.Styles.Shapes.Render(vertical)
+
 		if indent > 0 {
-			indentStr = strings.Repeat(" ", (indent-1)*4) + strings.Repeat(" ", 5)
-			indentShapedStr += strings.Repeat(" ", (indent-1)*4) + m.Styles.Shapes.Render(bottomLeft) + " "
+			indentStr = strings.Repeat(m.Styles.Shapes.Render(vertical)+"   ", (indent)) + shape
+		} else {
+			indentStr = shape
 		}
 
-		valueStr := fmt.Sprintf("%-*s", 20, node.Value)
-		descStr := fmt.Sprintf("%-*s", 20, node.Desc)
+		// Format string to have minimum of N characters,
+		// otherwise it's padded up to N characters
+		valueStr := m.Styles.Unselected.Render(fmt.Sprintf("%-*s", 50, node.Value))
+		descStr := m.Styles.Unselected.Render(fmt.Sprintf("%-*s", 50, node.Desc))
 
 		// If we are at the cursor, we add the selected style to the string
 		if m.cursor.Current == node {
-			str += indentShapedStr
-			str += fmt.Sprintf("%s\n", m.Styles.SelectedValue.Render(valueStr))
-			str += indentStr
-			str += fmt.Sprintf("%s\n", m.Styles.SelectedDesc.Render(descStr))
-		} else {
-			str += indentShapedStr
-			str += fmt.Sprintf("%s\n", m.Styles.Unselected.Render(valueStr))
-			str += indentStr
-			str += fmt.Sprintf("%s\n", m.Styles.Unselected.Render(descStr))
+			valueStr = m.Styles.SelectedValue.Render(valueStr)
+			descStr = m.Styles.SelectedDesc.Render(descStr)
 		}
+
+		str += indentStr + fmt.Sprintf("%s\n", valueStr)
+		str += indentStr + fmt.Sprintf("%s\n", descStr)
 
 		b.WriteString(str)
 
