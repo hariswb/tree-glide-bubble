@@ -12,8 +12,7 @@ import (
 
 const (
 	vertical      string = "│"
-	upRight       string = "└──◆"
-	verticalRight string = "├──◆"
+	verticalHeavy string = "┃"
 
 	white  = lipgloss.Color("#ffffff")
 	black  = lipgloss.Color("#000000")
@@ -142,6 +141,34 @@ func NewNode(value string, desc string, parent *Node) *Node {
 	return node
 }
 
+func (node *Node) WrapDesc(width int) []string {
+	if width <= 0 {
+		return []string{node.Desc}
+	}
+
+	words := strings.Fields(node.Desc)
+	var lines []string
+	var line string
+
+	for _, word := range words {
+		if len(line)+len(word) < width {
+			if line != "" {
+				line += " "
+			}
+			line += word
+		} else {
+			lines = append(lines, line)
+			line = word
+		}
+	}
+
+	if line != "" {
+		lines = append(lines, line)
+	}
+
+	return lines
+}
+
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -187,26 +214,35 @@ func (m *Model) renderTree(remainingNodes []*Node, indent int) string {
 		var indentStr string
 
 		shape := m.Styles.Shapes.Render(vertical)
+		wrapWidth := m.width - (indent)*3
+		minCharHighlight := wrapWidth
+
+		if m.cursor.Current == node {
+			shape = m.Styles.Shapes.Render(verticalHeavy)
+		}
 
 		if indent > 0 {
-			indentStr = strings.Repeat(m.Styles.Shapes.Render(vertical)+"   ", (indent)) + shape
+			indentStr = strings.Repeat(m.Styles.Shapes.Render(vertical)+"  ", (indent)) + shape
 		} else {
 			indentStr = shape
 		}
 
-		// Format string to have minimum of N characters,
-		// otherwise it's padded up to N characters
-		valueStr := m.Styles.Unselected.Render(fmt.Sprintf("%-*s", 50, node.Value))
-		descStr := m.Styles.Unselected.Render(fmt.Sprintf("%-*s", 50, node.Desc))
+		valueStr := m.Styles.Unselected.Render(fmt.Sprintf("%-*s", minCharHighlight, node.Value))
 
 		// If we are at the cursor, we add the selected style to the string
 		if m.cursor.Current == node {
 			valueStr = m.Styles.SelectedValue.Render(valueStr)
-			descStr = m.Styles.SelectedDesc.Render(descStr)
 		}
 
 		str += indentStr + fmt.Sprintf("%s\n", valueStr)
-		str += indentStr + fmt.Sprintf("%s\n", descStr)
+
+		for _, descStrLine := range node.WrapDesc(m.width - (indent)*3) {
+			descStr := m.Styles.Unselected.Render(fmt.Sprintf("%-*s", minCharHighlight, descStrLine))
+			if m.cursor.Current == node {
+				descStr = m.Styles.SelectedDesc.Render(descStr)
+			}
+			str += indentStr + fmt.Sprintf("%s\n", descStr)
+		}
 
 		b.WriteString(str)
 
@@ -218,6 +254,27 @@ func (m *Model) renderTree(remainingNodes []*Node, indent int) string {
 	}
 
 	return b.String()
+}
+
+func (m Model) Width() int {
+	return m.width
+}
+
+func (m Model) Height() int {
+	return m.height
+}
+
+func (m *Model) SetSize(width, height int) {
+	m.width = width
+	m.height = height
+}
+
+func (m *Model) SetWidth(newWidth int) {
+	m.SetSize(newWidth, m.height)
+}
+
+func (m *Model) SetHeight(newHeight int) {
+	m.SetSize(m.width, newHeight)
 }
 
 func (m *Model) NavUp() {
