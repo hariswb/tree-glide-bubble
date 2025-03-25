@@ -78,8 +78,6 @@ nodes := []tree.Node{
 tree:= tree.New(nodes, w, h)
 ```
 
-My initial solution was to use tree-bubbles's `Node` structure for user's initialization and convert it to treeglide's `Node` structure, but it adds even more complexity.
-
 To solve this, I add a helper for user to easily initializes their nodes and assign their parent's. It's also convenient for user to iterate their own tree structure to fit into treeglide's.
 ```go
 
