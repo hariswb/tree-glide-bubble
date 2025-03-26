@@ -2,6 +2,7 @@ package treeglide
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/help"
@@ -92,9 +93,11 @@ type Node struct {
 }
 
 type Cursor struct {
-	Current *Node
-	Parent  *Node
-	Index   int
+	Current     *Node
+	Parent      *Node
+	Index       int
+	WindowStart int
+	WindowEnd   int
 }
 
 type Model struct {
@@ -114,7 +117,7 @@ type Model struct {
 }
 
 func NewTree(node *Node, width int, height int) Model {
-	return Model{
+	m := Model{
 		KeyMap: DefaultKeyMap(),
 		Styles: defaultStyles(),
 
@@ -131,6 +134,11 @@ func NewTree(node *Node, width int, height int) Model {
 		Help:     help.New(),
 		showHelp: true,
 	}
+
+	m.cursor.WindowStart = 0
+	m.cursor.WindowEnd = m.height - lipgloss.Height(m.helpView())
+
+	return m
 }
 
 func NewNode(value string, desc string, parent *Node) *Node {
@@ -192,18 +200,96 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 func (m Model) View() string {
+	var sections []string
+	var help string
+
 	availableHeight := m.height
 
-	var help string
 	if m.showHelp {
 		help = m.helpView()
 		availableHeight -= lipgloss.Height(help)
 	}
 
-	var sections []string
-	sections = append(sections, lipgloss.NewStyle().Height(20).Render(m.renderTree(m.root.Children, 0)), help)
+	// Render tree
+	treeStr := m.renderTree(m.root.Children, 0)
+
+	sliced := strings.Split(treeStr, "\n")
+
+	// Adjust cursor focus
+	lineCounts := strings.Count(treeStr, "\n")
+
+	curStart := 0
+	curEnd := 0
+	curStart, curEnd = m.CurLinePos(m.root, &curStart, &curEnd, -1)
+
+	isOffset := !(curStart >= m.cursor.WindowStart && curEnd < m.cursor.WindowEnd)
+
+	if len(sliced) < m.cursor.WindowEnd {
+		m.cursor.WindowEnd = len(sliced)
+	}
+
+	sliced = sliced[m.cursor.WindowStart:m.cursor.WindowEnd]
+
+	if isOffset {
+		// Adjust
+		m.cursor.WindowEnd = curStart
+
+		if m.cursor.WindowEnd+availableHeight > lineCounts {
+			m.cursor.WindowEnd = lineCounts
+		} else {
+			m.cursor.WindowEnd = m.cursor.WindowEnd + availableHeight
+		}
+
+		sliced = strings.Split(treeStr, "\n")[m.cursor.WindowStart : m.cursor.WindowEnd+1]
+	}
+
+	debug := "all: " + strconv.Itoa(lineCounts) +
+		" pos: " + strconv.Itoa(curStart) + ";" + strconv.Itoa(curEnd) + ";" +
+		strconv.Itoa(m.cursor.WindowStart) + ";" + strconv.Itoa(m.cursor.WindowEnd) +
+		" off: " + strconv.FormatBool(isOffset) //+ " " + strconv.Itoa(m.cursor.Index)
+
+	sections = append(
+		sections,
+		lipgloss.NewStyle().Height(availableHeight).Render(strings.Join(sliced, "\n")),
+		help,
+		debug,
+	)
 
 	return lipgloss.JoinVertical(lipgloss.Left, sections...)
+}
+
+func (m Model) CurLinePos(node *Node, start *int, end *int, indent int) (int, int) {
+	if node == nil {
+		return -1, -1
+	}
+
+	valueLen := 1
+	descLen := len(node.WrapDesc(m.width - (indent)*3))
+
+	if *start == 0 && *end == 0 {
+		*end = descLen
+	} else {
+		*start = *end + valueLen
+		*end = *start + descLen
+	}
+
+	if m.cursor.Current == node {
+		return *start, *end
+	}
+
+	if node == m.root {
+		*start = 0
+		*end = 0
+	}
+
+	for _, child := range node.Children {
+		resultStart, resultEnd := m.CurLinePos(child, start, end, indent+1)
+		if resultStart != -1 { // If found, return immediately
+			return resultStart, resultEnd
+		}
+	}
+
+	return -1, -1
 }
 
 func (m *Model) renderTree(remainingNodes []*Node, indent int) string {
@@ -214,10 +300,11 @@ func (m *Model) renderTree(remainingNodes []*Node, indent int) string {
 		var indentStr string
 
 		shape := m.Styles.Shapes.Render(vertical)
-		wrapWidth := m.width - (indent)*3
+		wrapWidth := m.width - (indent)*4
 		minCharHighlight := wrapWidth
+		isCurrentCursor := m.cursor.Current == node
 
-		if m.cursor.Current == node {
+		if isCurrentCursor {
 			shape = m.Styles.Shapes.Render(verticalHeavy)
 		}
 
@@ -230,7 +317,7 @@ func (m *Model) renderTree(remainingNodes []*Node, indent int) string {
 		valueStr := m.Styles.Unselected.Render(fmt.Sprintf("%-*s", minCharHighlight, node.Value))
 
 		// If we are at the cursor, we add the selected style to the string
-		if m.cursor.Current == node {
+		if isCurrentCursor {
 			valueStr = m.Styles.SelectedValue.Render(valueStr)
 		}
 
@@ -238,7 +325,7 @@ func (m *Model) renderTree(remainingNodes []*Node, indent int) string {
 
 		for _, descStrLine := range node.WrapDesc(m.width - (indent)*3) {
 			descStr := m.Styles.Unselected.Render(fmt.Sprintf("%-*s", minCharHighlight, descStrLine))
-			if m.cursor.Current == node {
+			if isCurrentCursor {
 				descStr = m.Styles.SelectedDesc.Render(descStr)
 			}
 			str += indentStr + fmt.Sprintf("%s\n", descStr)
@@ -250,7 +337,6 @@ func (m *Model) renderTree(remainingNodes []*Node, indent int) string {
 			childStr := m.renderTree(node.Children, indent+1)
 			b.WriteString(childStr)
 		}
-
 	}
 
 	return b.String()

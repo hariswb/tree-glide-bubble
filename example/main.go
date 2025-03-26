@@ -52,7 +52,7 @@ func main() {
 	treeglide.NewNode("user5", "Not sure if I agree, but interesting take.", user4)
 	treeglide.NewNode("user6", "I see your point, but have you considered XYZ?", user4)
 
-	treeglide.NewNode("user10", "Can you please elaborate?", user1)
+	treeglide.NewNode("user10", "Can you please be kind to elaborate?", user1)
 
 	// Replies to user2
 	user7 := treeglide.NewNode("user7", "What do you mean by that?", user2)
@@ -69,6 +69,9 @@ func main() {
 	top, right, bottom, left := styleDoc.GetPadding()
 	w = w - left - right
 	h = h - top - bottom
+
+	// fmt.Printf(strconv.Itoa(w) + " " + strconv.Itoa(h))
+	// treeglide.NewTree(root, w, h)
 
 	err := tea.NewProgram(model{tree: treeglide.NewTree(root, w, h)}).Start()
 	if err != nil {
