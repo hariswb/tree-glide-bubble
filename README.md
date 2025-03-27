@@ -7,6 +7,7 @@ Treeglide is a fork of [tree-bubble](https://github.com/savannahostrowski/tree-b
 - Collapsible (future).
 
 ![Demo](./tree-glide-demo.gif)
+![Demo](./tree-glide-scroll-demo.gif)
 
 # Challenges
 
