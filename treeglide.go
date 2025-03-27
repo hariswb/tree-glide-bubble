@@ -92,11 +92,12 @@ type Node struct {
 }
 
 type Cursor struct {
-	Current     *Node
-	Parent      *Node
-	Index       int
-	WindowStart int
-	WindowEnd   int
+	Current      *Node
+	Parent       *Node
+	Index        int
+	WindowStart  int
+	WindowEnd    int
+	WindowHeight int
 }
 
 type Model struct {
@@ -134,8 +135,15 @@ func NewTree(node *Node, width int, height int) Model {
 		showHelp: true,
 	}
 
+	availableHeight := m.height
+
+	if m.showHelp {
+		availableHeight -= lipgloss.Height(m.helpView())
+	}
+
+	m.cursor.WindowHeight = availableHeight
 	m.cursor.WindowStart = 0
-	m.cursor.WindowEnd = m.height - lipgloss.Height(m.helpView())
+	m.cursor.WindowEnd = availableHeight
 
 	return m
 }
@@ -200,42 +208,36 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 func (m Model) View() string {
 	var sections []string
-	var help string
 
-	availableHeight := m.height
-
-	if m.showHelp {
-		help = m.helpView()
-		availableHeight -= lipgloss.Height(help)
-	}
-
+	// Render tree
 	treeStr := m.renderTree(m.root.Children, 0)
-	totalTreeLen := strings.Count(treeStr, "\n")
+	totalLines := strings.Count(treeStr, "\n")
 
-	slicedTree := strings.Split(treeStr, "\n")
+	visibleTree := strings.Split(treeStr, "\n")
 
 	curStart := 0
 	curEnd := 0
 	curStart, curEnd = m.CurLinePos(m.root, &curStart, &curEnd, -1)
 
+	// Offset means the cursor went beyond the window height
 	isOffset := !(curStart >= m.cursor.WindowStart && curEnd < m.cursor.WindowEnd)
 
-	if len(slicedTree) < m.cursor.WindowEnd {
-		m.cursor.WindowEnd = len(slicedTree)
-	}
+	// If the whole text less than the available height,
+	// Set the slice target to its minimum
+	m.cursor.WindowEnd = min(len(visibleTree), m.cursor.WindowEnd)
 
-	slicedTree = slicedTree[m.cursor.WindowStart:m.cursor.WindowEnd]
+	visibleTree = visibleTree[m.cursor.WindowStart:m.cursor.WindowEnd]
 
 	if isOffset {
-		m.cursor.WindowEnd = min(curStart+availableHeight, totalTreeLen)
-
-		slicedTree = slicedTree[m.cursor.WindowStart : m.cursor.WindowEnd+1]
+		// Readjust the tree slice, refocus the cursor
+		m.cursor.WindowEnd = min(curStart+m.cursor.WindowHeight, totalLines)
+		visibleTree = visibleTree[m.cursor.WindowStart : m.cursor.WindowEnd+1]
 	}
 
 	sections = append(
 		sections,
-		lipgloss.NewStyle().Height(availableHeight).Render(strings.Join(slicedTree, "\n")),
-		help,
+		lipgloss.NewStyle().Height(m.cursor.WindowHeight).Render(strings.Join(visibleTree, "\n")),
+		m.helpView(),
 	)
 
 	return lipgloss.JoinVertical(lipgloss.Left, sections...)
