@@ -14,9 +14,10 @@ const (
 	vertical      string = "│"
 	verticalHeavy string = "┃"
 
-	white  = lipgloss.Color("#ffffff")
-	black  = lipgloss.Color("#000000")
-	purple = lipgloss.Color("#bd93f9")
+	white    = lipgloss.Color("#ffffff")
+	black    = lipgloss.Color("#000000")
+	blue     = lipgloss.Color("#8ea1f5")
+	darkBlue = lipgloss.Color("#5a6ec4")
 )
 
 type Styles struct {
@@ -29,8 +30,8 @@ type Styles struct {
 
 func defaultStyles() Styles {
 	return Styles{
-		Shapes:        lipgloss.NewStyle().Margin(0, 0, 0, 0).Foreground(purple),
-		SelectedValue: lipgloss.NewStyle().Margin(0, 0, 0, 0).Background(purple),
+		Shapes:        lipgloss.NewStyle().Margin(0, 0, 0, 0).Foreground(blue),
+		SelectedValue: lipgloss.NewStyle().Margin(0, 0, 0, 0).Background(blue),
 		SelectedDesc:  lipgloss.NewStyle().Margin(0, 0, 0, 0).Background(lipgloss.AdaptiveColor{Light: "#111100", Dark: "#001100"}),
 		Unselected:    lipgloss.NewStyle().Margin(0, 0, 0, 0).Foreground(lipgloss.AdaptiveColor{Light: "#000000", Dark: "#ffffff"}),
 		Help:          lipgloss.NewStyle().Margin(0, 0, 0, 0).Foreground(lipgloss.AdaptiveColor{Light: "#000000", Dark: "#ffffff"}),
