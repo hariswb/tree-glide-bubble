@@ -1,9 +1,12 @@
 # Introduction
 
 Treeglide is a fork of [tree-bubble](https://github.com/savannahostrowski/tree-bubble) module. It affords:
+
 - Cursor navigation between tree's parent and its children.
-- Tree view like reddit comment (future).
+- Tree view like reddit comment.
 - Collapsible (future).
+
+![Demo](./tree-glide-demo.gif)
 
 # Challenges
 
@@ -146,3 +149,7 @@ To solve this, I use mobile reddit's comment design. It has clear key visual to 
 │   │   │user8
 │   │   │I think user2 has a good argument.
 ```
+
+## Cursor Scroll
+
+
