@@ -2,7 +2,6 @@ package treeglide
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/help"
@@ -210,13 +209,10 @@ func (m Model) View() string {
 		availableHeight -= lipgloss.Height(help)
 	}
 
-	// Render tree
 	treeStr := m.renderTree(m.root.Children, 0)
+	totalTreeLen := strings.Count(treeStr, "\n")
 
-	sliced := strings.Split(treeStr, "\n")
-
-	// Adjust cursor focus
-	lineCounts := strings.Count(treeStr, "\n")
+	slicedTree := strings.Split(treeStr, "\n")
 
 	curStart := 0
 	curEnd := 0
@@ -224,35 +220,22 @@ func (m Model) View() string {
 
 	isOffset := !(curStart >= m.cursor.WindowStart && curEnd < m.cursor.WindowEnd)
 
-	if len(sliced) < m.cursor.WindowEnd {
-		m.cursor.WindowEnd = len(sliced)
+	if len(slicedTree) < m.cursor.WindowEnd {
+		m.cursor.WindowEnd = len(slicedTree)
 	}
 
-	sliced = sliced[m.cursor.WindowStart:m.cursor.WindowEnd]
+	slicedTree = slicedTree[m.cursor.WindowStart:m.cursor.WindowEnd]
 
 	if isOffset {
-		// Adjust
-		m.cursor.WindowEnd = curStart
+		m.cursor.WindowEnd = min(curStart+availableHeight, totalTreeLen)
 
-		if m.cursor.WindowEnd+availableHeight > lineCounts {
-			m.cursor.WindowEnd = lineCounts
-		} else {
-			m.cursor.WindowEnd = m.cursor.WindowEnd + availableHeight
-		}
-
-		sliced = strings.Split(treeStr, "\n")[m.cursor.WindowStart : m.cursor.WindowEnd+1]
+		slicedTree = slicedTree[m.cursor.WindowStart : m.cursor.WindowEnd+1]
 	}
-
-	debug := "all: " + strconv.Itoa(lineCounts) +
-		" pos: " + strconv.Itoa(curStart) + ";" + strconv.Itoa(curEnd) + ";" +
-		strconv.Itoa(m.cursor.WindowStart) + ";" + strconv.Itoa(m.cursor.WindowEnd) +
-		" off: " + strconv.FormatBool(isOffset) //+ " " + strconv.Itoa(m.cursor.Index)
 
 	sections = append(
 		sections,
-		lipgloss.NewStyle().Height(availableHeight).Render(strings.Join(sliced, "\n")),
+		lipgloss.NewStyle().Height(availableHeight).Render(strings.Join(slicedTree, "\n")),
 		help,
-		debug,
 	)
 
 	return lipgloss.JoinVertical(lipgloss.Left, sections...)
@@ -292,46 +275,75 @@ func (m Model) CurLinePos(node *Node, start *int, end *int, indent int) (int, in
 	return -1, -1
 }
 
+func (c *Cursor) IsCurrent(node *Node) bool {
+	return c.Current == node
+}
+
+type Renderer struct {
+	result    string
+	indentStr string
+	model     *Model
+	node      *Node
+	indent    int
+	boxWidth  int
+}
+
+func (r *Renderer) CreateIndent() {
+	shape := r.model.Styles.Shapes.Render(vertical)
+	if r.model.cursor.IsCurrent(r.node) {
+		shape = r.model.Styles.Shapes.Render(verticalHeavy)
+	}
+
+	if r.indent > 0 {
+		r.indentStr = strings.Repeat(r.model.Styles.Shapes.Render(vertical)+"  ", (r.indent)) + shape
+	} else {
+		r.indentStr = shape
+	}
+}
+
+// Define the rendered texts maximum width
+func (r *Renderer) BoxWidth() {
+	r.boxWidth = r.model.width - (r.indent)*4
+}
+
+func (r *Renderer) CreateValueStr() {
+	valueStr := r.model.Styles.Unselected.Render(fmt.Sprintf("%-*s", r.boxWidth, r.node.Value))
+
+	// If we are at the cursor, we add the selected style to the string
+	if r.model.cursor.IsCurrent(r.node) {
+		valueStr = r.model.Styles.SelectedValue.Render(valueStr)
+	}
+
+	r.result += r.indentStr + fmt.Sprintf("%s\n", valueStr)
+}
+
+func (r *Renderer) CreateDescStrs() {
+	for _, descStrLine := range r.node.WrapDesc(r.boxWidth) {
+		descStr := r.model.Styles.Unselected.Render(fmt.Sprintf("%-*s", r.boxWidth, descStrLine))
+		if r.model.cursor.IsCurrent(r.node) {
+			descStr = r.model.Styles.SelectedDesc.Render(descStr)
+		}
+		r.result += r.indentStr + fmt.Sprintf("%s\n", descStr)
+	}
+}
+
 func (m *Model) renderTree(remainingNodes []*Node, indent int) string {
 	var b strings.Builder
 
 	for _, node := range remainingNodes {
-		var str string
-		var indentStr string
 
-		shape := m.Styles.Shapes.Render(vertical)
-		wrapWidth := m.width - (indent)*4
-		minCharHighlight := wrapWidth
-		isCurrentCursor := m.cursor.Current == node
-
-		if isCurrentCursor {
-			shape = m.Styles.Shapes.Render(verticalHeavy)
+		renderer := Renderer{
+			model:  m,
+			node:   node,
+			indent: indent,
 		}
 
-		if indent > 0 {
-			indentStr = strings.Repeat(m.Styles.Shapes.Render(vertical)+"  ", (indent)) + shape
-		} else {
-			indentStr = shape
-		}
+		renderer.BoxWidth()
+		renderer.CreateIndent()
+		renderer.CreateValueStr()
+		renderer.CreateDescStrs()
 
-		valueStr := m.Styles.Unselected.Render(fmt.Sprintf("%-*s", minCharHighlight, node.Value))
-
-		// If we are at the cursor, we add the selected style to the string
-		if isCurrentCursor {
-			valueStr = m.Styles.SelectedValue.Render(valueStr)
-		}
-
-		str += indentStr + fmt.Sprintf("%s\n", valueStr)
-
-		for _, descStrLine := range node.WrapDesc(m.width - (indent)*3) {
-			descStr := m.Styles.Unselected.Render(fmt.Sprintf("%-*s", minCharHighlight, descStrLine))
-			if isCurrentCursor {
-				descStr = m.Styles.SelectedDesc.Render(descStr)
-			}
-			str += indentStr + fmt.Sprintf("%s\n", descStr)
-		}
-
-		b.WriteString(str)
+		b.WriteString(renderer.result)
 
 		if node.Children != nil {
 			childStr := m.renderTree(node.Children, indent+1)
