@@ -1,10 +1,11 @@
 # Introduction
 
-Treeglide is a fork of [tree-bubble](https://github.com/savannahostrowski/tree-bubble) module. It affords:
+Treeglide is a TUI view for tree data structure. It is a fork of [tree-bubble](https://github.com/savannahostrowski/tree-bubble) module. It affords:
 
-- Cursor navigation between tree's parent and its children.
 - Tree view like reddit comment.
-- Collapsible (future).
+- Scroll navigation for large tree on small view window.
+- Navigate between tree's parent and its children seamlessly.
+
 
 ![Demo](./tree-glide-demo.gif)
 ![Demo](./tree-glide-scroll-demo.gif)
