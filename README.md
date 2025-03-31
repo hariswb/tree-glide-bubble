@@ -152,6 +152,5 @@ To solve this, I use mobile reddit's comment design. It has clear key visual to 
 │   │   │I think user2 has a good argument.
 ```
 
-## Cursor Scroll
 
 
