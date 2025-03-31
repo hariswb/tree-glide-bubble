@@ -3,7 +3,7 @@
 Treeglide is a TUI view for tree data structure. It is a fork of [tree-bubble](https://github.com/savannahostrowski/tree-bubble) module. It affords:
 
 - Tree view like reddit comment.
-- Scroll navigation for large tree on small view window.
+- Scroll navigation for large tree on small window view.
 - Navigate between tree's parent and its children seamlessly.
 
 
